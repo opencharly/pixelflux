@@ -72,7 +72,7 @@ before-all = """
             make install) && \
         \
         (cd /tmp && \
-            git clone --branch n8.0 --depth 1 https://git.ffmpeg.org/ffmpeg.git && \
+            git clone --branch n9.0 --depth 1 https://git.ffmpeg.org/ffmpeg.git && \
             cd ffmpeg && \
             ./configure \
                 --prefix=/usr/local \
