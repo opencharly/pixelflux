@@ -265,24 +265,35 @@ impl PrimarySelectionHandler for AppState {
 
 impl XdgDecorationHandler for AppState {
     fn new_decoration(&mut self, toplevel: ToplevelSurface) {
+        // Set the mode but send NOTHING: this fires while the toplevel is still being set up,
+        // before its initial configure, and the initial configure carries the decoration mode
+        // anyway. Sending here allocated a serial that reached the client AFTER the initial
+        // configure's higher serial, so serials arrived non-monotonically and the client's ack
+        // matched no pending configure -- Smithay then killed it with
+        // `xdg_wm_base error 4: wrong configure serial`. Smithay's own anvil sends nothing here.
         toplevel.with_pending_state(|state| {
             state.decoration_mode = Some(Mode::ServerSide);
         });
-        toplevel.send_configure();
     }
 
     fn request_mode(&mut self, toplevel: ToplevelSurface, mode: Mode) {
         toplevel.with_pending_state(|state| {
             state.decoration_mode = Some(mode);
         });
-        toplevel.send_configure();
+        // Guarded exactly as anvil guards it: before the initial configure there is nothing to
+        // amend, and sending anyway is what produced the out-of-order serials.
+        if toplevel.is_initial_configure_sent() {
+            toplevel.send_pending_configure();
+        }
     }
 
     fn unset_mode(&mut self, toplevel: ToplevelSurface) {
         toplevel.with_pending_state(|state| {
             state.decoration_mode = Some(Mode::ServerSide);
         });
-        toplevel.send_configure();
+        if toplevel.is_initial_configure_sent() {
+            toplevel.send_pending_configure();
+        }
     }
 }
 
